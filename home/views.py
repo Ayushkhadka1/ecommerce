@@ -102,4 +102,41 @@ def signup(request):
             messages.error(request, 'The password and confirm password is not same!')
             return redirect('/signup')
 
-    return render(request,'signup.html')    
+    return render(request,'signup.html')
+    
+class CartView(Base):
+    def get(self,request):
+        username = request.user.username
+        self.views['cart_product'] = Cart.objects.filter(username = username,checkout = False)
+    
+        return render(request,'cart.html',self.views)
+
+def add_to_cart(request,slug):
+    username = request.user.username
+    if Cart.objects.filter(slug = slug,username=username,checkout = False).exists():
+        quantity = Cart.objects.get(slug = slug,username=username,checkout = False).quantity
+        price = Product.objects.get(slug=slug).price
+        discounted_price = Product.objects.get(slug=slug).discounted_price
+        if discounted_price > 0:
+            original_price = discounted_price
+        else:
+            original_price = price
+        quantity = quantity + 1
+        total = quantity * original_price
+        Cart.objects.filter(slug=slug, username=username, checkout=False).update(total = total,quantity = quantity)
+        return redirect('/cart')
+    else:
+        price = Product.objects.get(slug=slug).price
+        discounted_price = Product.objects.get(slug=slug).discounted_price
+        if discounted_price > 0:
+            total = discounted_price
+        else:
+            total = price
+        data = Cart.objects.create(
+            username = username,
+            slug = slug,
+            items = Product.objects.filter(slug = slug)[0], #[{'price':2000,name:'Apple'}]
+            total = total
+        )
+        data.save()
+        return redirect('/cart')
